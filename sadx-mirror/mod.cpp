@@ -2,21 +2,32 @@
 
 #define EXPORT __declspec(dllexport)
 
-DataPointer(float, TransformationMatrix, 0x03D0FD80);
-DataPointer(float, BaseTransformationMatrix, 0x0389D318);
+// basically NJS_MATRIX
+DataArray(float, TransformationMatrix, 0x03D0FD80, 16);
+DataArray(float, BaseTransformationMatrix, 0x0389D318, 16);
+
 DataPointer(float, ViewPortWidth_Half, 0x03D0FA0C);
 DataPointer(float, ViewPortHeight_Half, 0x03D0FA10);
 DataPointer(Bool, TransformAndViewportInvalid, 0x03D0FD1C);
 
-static bool mirror_enabled = true;
+static bool mirror_x = true;
+static bool mirror_y = false;
 
 static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7);
-static Trampoline Draw3DSpriteThing(0x0077E390, 0x0077E398, njDrawSprite3D_3_r);
+static Trampoline njDrawSprite3D_3_trampoline(0x0077E390, 0x0077E398, njDrawSprite3D_3_r);
 static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7)
 {
-	FunctionPointer(void, original, (NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7), Draw3DSpriteThing.Target());
-	if (mirror_enabled)
+	FunctionPointer(void, original, (NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7),
+		njDrawSprite3D_3_trampoline.Target());
+
+	if (mirror_x)
+	{
 		attr = (attr & NJD_SPRITE_HFLIP) ? attr & ~NJD_SPRITE_HFLIP : attr | NJD_SPRITE_HFLIP;
+	}
+	if (mirror_y)
+	{
+		attr = (attr & NJD_SPRITE_VFLIP) ? attr & ~NJD_SPRITE_VFLIP : attr | NJD_SPRITE_VFLIP;
+	}
 
 	original(a1, n, attr, a7);
 }
@@ -24,14 +35,19 @@ static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, f
 static void __stdcall sprite_flip_c(NJS_VECTOR* v)
 {
 	auto v8 = _nj_screen_.dist / v->z;
-	v->x = v->x * v8 + ViewPortWidth_Half;
 
-	if (mirror_enabled)
+	v->x = v->x * v8 + ViewPortWidth_Half;
+	v->y = v->y * v8 + ViewPortHeight_Half;
+
+	if (mirror_x)
 	{
 		v->x = (float)HorizontalResolution - v->x;
 	}
 
-	v->y = v->y * v8 + ViewPortHeight_Half;
+	if (mirror_y)
+	{
+		v->y = (float)VerticalResolution - v->y;
+	}
 }
 
 constexpr auto sprite_flip_retn = (void*)0x0077E46E;
@@ -57,8 +73,7 @@ extern "C"
 	EXPORT void __cdecl Init()
 	{
 		WriteJump((void*)0x0077E444, sprite_flip);
-		NJS_MATRIX* m = (NJS_MATRIX*)&BaseTransformationMatrix;
-		*m[M00] = -1.0f;
+		BaseTransformationMatrix[M00] *= -1.0f;
 	}
 
 	EXPORT void __cdecl OnInput()
@@ -71,13 +86,18 @@ extern "C"
 
 			if (pad->PressedButtons & Buttons_D)
 			{
-				mirror_enabled = !mirror_enabled;
-				NJS_MATRIX* m = (NJS_MATRIX*)&BaseTransformationMatrix;
-				*m[M00] = -*m[M00];
+				mirror_x = !mirror_x;
+				BaseTransformationMatrix[M00] *= -1.0f;
+				TransformAndViewportInvalid = 1;
+			}
+			if (pad->PressedButtons & Buttons_C)
+			{
+				mirror_y = !mirror_y;
+				BaseTransformationMatrix[M11] *= -1.0f;
 				TransformAndViewportInvalid = 1;
 			}
 
-			if (!mirror_enabled)
+			if (!mirror_x)
 				continue;
 
 			pad->LeftStickX = -pad->LeftStickX;
