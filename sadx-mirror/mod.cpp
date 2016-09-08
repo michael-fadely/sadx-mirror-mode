@@ -1,27 +1,54 @@
 #include "stdafx.h"
-#include <SADXModLoader.h>
-#include <Trampoline.h>
 
 #define EXPORT __declspec(dllexport)
 
-// MAINMEMORY PLS
-//DataPointer(NJS_MATRIX, TransformationMatrix, 0x03D0FD80);
 DataPointer(float, TransformationMatrix, 0x03D0FD80);
 DataPointer(float, BaseTransformationMatrix, 0x0389D318);
+DataPointer(float, ViewPortWidth_Half, 0x03D0FA0C);
+DataPointer(float, ViewPortHeight_Half, 0x03D0FA10);
+DataPointer(Bool, TransformAndViewportInvalid, 0x03D0FD1C);
 
-void __cdecl ajfskdfhsadf(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7);
-Trampoline Draw3DSpriteThing(0x0077E390, 0x0077E398, (DetourFunction)ajfskdfhsadf);
-void __cdecl ajfskdfhsadf(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7)
+static bool mirror_enabled = true;
+
+static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7);
+static Trampoline Draw3DSpriteThing(0x0077E390, 0x0077E398, njDrawSprite3D_3_r);
+static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7)
 {
-	NJS_POINT3 old_pos = a1->p;
-	NJS_POINT3* p = &a1->p;
-
-	//p->x = -p->x + HorizontalResolution;
-
 	FunctionPointer(void, original, (NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7), Draw3DSpriteThing.Target());
-	original(a1, n, attr, a7);
+	if (mirror_enabled)
+		attr = (attr & NJD_SPRITE_HFLIP) ? attr & ~NJD_SPRITE_HFLIP : attr | NJD_SPRITE_HFLIP;
 
-	a1->p = old_pos;
+	original(a1, n, attr, a7);
+}
+
+static void __stdcall sprite_flip_c(NJS_VECTOR* v)
+{
+	auto v8 = _nj_screen_.dist / v->z;
+	v->x = v->x * v8 + ViewPortWidth_Half;
+
+	if (mirror_enabled)
+	{
+		v->x = (float)HorizontalResolution - v->x;
+	}
+
+	v->y = v->y * v8 + ViewPortHeight_Half;
+}
+
+constexpr auto sprite_flip_retn = (void*)0x0077E46E;
+static void __declspec(naked) sprite_flip()
+{
+	__asm
+	{
+		lea     ecx, [esp + 30h]
+		push    ecx
+		call    sprite_flip_c
+
+		mov     ecx, dword ptr [_nj_screen_.dist]
+		fld     dword ptr [ecx]
+		fdiv    dword ptr [esp + 38h]
+
+		jmp     sprite_flip_retn
+	}
 }
 
 extern "C"
@@ -29,6 +56,7 @@ extern "C"
 	EXPORT ModInfo SADXModInfo = { ModLoaderVer };
 	EXPORT void __cdecl Init()
 	{
+		WriteJump((void*)0x0077E444, sprite_flip);
 		NJS_MATRIX* m = (NJS_MATRIX*)&BaseTransformationMatrix;
 		*m[M00] = -1.0f;
 	}
@@ -39,6 +67,17 @@ extern "C"
 		{
 			ControllerData* pad = ControllerPointers[i];
 			if (pad == nullptr)
+				continue;
+
+			if (pad->PressedButtons & Buttons_D)
+			{
+				mirror_enabled = !mirror_enabled;
+				NJS_MATRIX* m = (NJS_MATRIX*)&BaseTransformationMatrix;
+				*m[M00] = -*m[M00];
+				TransformAndViewportInvalid = 1;
+			}
+
+			if (!mirror_enabled)
 				continue;
 
 			pad->LeftStickX = -pad->LeftStickX;
