@@ -97,7 +97,8 @@ extern "C"
 				TransformAndViewportInvalid = 1;
 			}
 
-			if (!mirror_x)
+			// We want to skip axis flipping if we're on a menu or the game is paused.
+			if (!mirror_x || GameState == 21 || GameState == 16)
 				continue;
 
 			pad->LeftStickX = -pad->LeftStickX;
