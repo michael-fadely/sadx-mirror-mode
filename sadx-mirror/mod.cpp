@@ -10,8 +10,14 @@ DataPointer(float, ViewPortWidth_Half, 0x03D0FA0C);
 DataPointer(float, ViewPortHeight_Half, 0x03D0FA10);
 DataPointer(Bool, TransformAndViewportInvalid, 0x03D0FD1C);
 
-static bool mirror_x = true;
-static bool mirror_y = false;
+enum MirrorDirection : Uint8
+{
+	MirrorX = 1 << 0,
+	MirrorY = 1 << 1,
+	MirrorXY = MirrorX | MirrorY
+};
+
+static Uint8 mirror = MirrorX;
 
 static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7);
 static Trampoline njDrawSprite3D_3_trampoline(0x0077E390, 0x0077E398, njDrawSprite3D_3_r);
@@ -20,14 +26,14 @@ static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, f
 	FunctionPointer(void, original, (NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7),
 		njDrawSprite3D_3_trampoline.Target());
 
-	if (mirror_x)
+	/*if (mirror & MirrorX)
 	{
 		attr = (attr & NJD_SPRITE_HFLIP) ? attr & ~NJD_SPRITE_HFLIP : attr | NJD_SPRITE_HFLIP;
 	}
-	if (mirror_y)
+	if (mirror & MirrorY)
 	{
 		attr = (attr & NJD_SPRITE_VFLIP) ? attr & ~NJD_SPRITE_VFLIP : attr | NJD_SPRITE_VFLIP;
-	}
+	}*/
 
 	original(a1, n, attr, a7);
 }
@@ -39,12 +45,12 @@ static void __stdcall sprite_flip_c(NJS_VECTOR* v)
 	v->x = v->x * v8 + ViewPortWidth_Half;
 	v->y = v->y * v8 + ViewPortHeight_Half;
 
-	if (mirror_x)
+	if (mirror & MirrorX)
 	{
 		v->x = (float)HorizontalResolution - v->x;
 	}
 
-	if (mirror_y)
+	if (mirror & MirrorY)
 	{
 		v->y = (float)VerticalResolution - v->y;
 	}
@@ -84,21 +90,23 @@ extern "C"
 			if (pad == nullptr)
 				continue;
 
+#ifdef _DEBUG
 			if (pad->PressedButtons & Buttons_D)
 			{
-				mirror_x = !mirror_x;
+				mirror ^= MirrorX;
 				BaseTransformationMatrix[M00] *= -1.0f;
 				TransformAndViewportInvalid = 1;
 			}
 			if (pad->PressedButtons & Buttons_C)
 			{
-				mirror_y = !mirror_y;
+				mirror ^= MirrorY;
 				BaseTransformationMatrix[M11] *= -1.0f;
 				TransformAndViewportInvalid = 1;
 			}
+#endif
 
 			// We want to skip axis flipping if we're on a menu or the game is paused.
-			if (!mirror_x || GameState == 21 || GameState == 16)
+			if (!(mirror & MirrorX) || GameState == 21 || GameState == 16)
 				continue;
 
 			pad->LeftStickX = -pad->LeftStickX;
