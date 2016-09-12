@@ -3,7 +3,6 @@
 #define EXPORT __declspec(dllexport)
 
 // basically NJS_MATRIX
-DataArray(float, TransformationMatrix, 0x03D0FD80, 16);
 DataArray(float, BaseTransformationMatrix, 0x0389D318, 16);
 
 DataPointer(float, ViewPortWidth_Half, 0x03D0FA0C);
@@ -12,8 +11,8 @@ DataPointer(Bool, TransformAndViewportInvalid, 0x03D0FD1C);
 
 enum MirrorDirection : Uint8
 {
-	MirrorX = 1 << 0,
-	MirrorY = 1 << 1,
+	MirrorX  = 1 << 0,
+	MirrorY  = 1 << 1,
 	MirrorXY = MirrorX | MirrorY
 };
 
