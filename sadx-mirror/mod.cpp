@@ -66,6 +66,37 @@ static void toggle_mirror(Uint8 direction)
 		BaseTransformationMatrix[M11] *= -1.0f;
 		TransformAndViewportInvalid = true;
 	}
+
+	if (!TransformAndViewportInvalid)
+		return;
+
+	bool mirrored = is_mirrored(mirror);
+	auto clockwise = (int)(mirrored ? D3DCULL_CCW : D3DCULL_CW);
+	auto counterClockwise = (int)(mirrored ? D3DCULL_CW : D3DCULL_CCW);
+
+	WriteData((int*)0x00795BD3, counterClockwise);
+	WriteData((int*)0x00795BDE, clockwise);
+
+	WriteData((int*)0x00795CD3, counterClockwise);
+	WriteData((int*)0x00795CDE, clockwise);
+
+	WriteData((int*)0x00795DF3, counterClockwise);
+	WriteData((int*)0x00795DFE, clockwise);
+
+	WriteData((int*)0x00795F28, counterClockwise);
+	WriteData((int*)0x00795F33, clockwise);
+
+	WriteData((int*)0x00796068, counterClockwise);
+	WriteData((int*)0x00796073, clockwise);
+
+	WriteData((int*)0x007961BB, clockwise);
+	WriteData((int*)0x007961CE, counterClockwise);
+
+	WriteData((int*)0x00796328, counterClockwise);
+	WriteData((int*)0x00796333, clockwise);
+
+	WriteData((int*)0x00796483, counterClockwise);
+	WriteData((int*)0x0079648E, clockwise);
 }
 
 void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this);
