@@ -187,7 +187,7 @@ static bool do_chao_fix()
 			return false;
 
 		auto current = GetCurrentChaoStage();
-		chao_fix = current == SADXChaoStage_RaceEntry || current == SADXChaoStage_BlackMarket;
+		chao_fix = current == SADXChaoStage_RaceEntry || current == SADXChaoStage_BlackMarket || current == SADXChaoStage_Race;
 
 		if (chao_fix)
 		{
@@ -199,7 +199,7 @@ static bool do_chao_fix()
 	{
 		auto current = GetCurrentChaoStage();
 
-		if (!IsChaoStage || current != SADXChaoStage_RaceEntry && current != SADXChaoStage_BlackMarket)
+		if (!IsChaoStage || current != SADXChaoStage_RaceEntry && current != SADXChaoStage_BlackMarket && current != SADXChaoStage_Race)
 		{
 			toggle_mirror(last_mirror);
 			chao_fix = false;
