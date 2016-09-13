@@ -236,6 +236,22 @@ static bool do_chao_fix()
 	return chao_fix;
 }
 
+static constexpr auto trigger_mask = Buttons_L | Buttons_R;
+static void swap_triggers(uint32_t& buttons)
+{
+	if (!(buttons & trigger_mask) || buttons & trigger_mask == trigger_mask)
+		return;
+
+	if (buttons & Buttons_L)
+	{
+		buttons = (buttons & ~Buttons_L) | Buttons_R;
+	}
+	else if (buttons & Buttons_R)
+	{
+		buttons = (buttons & ~Buttons_R) | Buttons_L;
+	}
+}
+
 extern "C"
 {
 	EXPORT ModInfo SADXModInfo = { ModLoaderVer };
@@ -279,10 +295,10 @@ extern "C"
 			auto lt = pad->LTriggerPressure;
 			auto rt = pad->RTriggerPressure;
 
-			// TODO: handle digital L/R triggers
-
 			pad->LTriggerPressure = rt;
 			pad->RTriggerPressure = lt;
+
+			swap_triggers(pad->HeldButtons);
 		}
 	}
 }
