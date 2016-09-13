@@ -99,9 +99,9 @@ static void toggle_mirror(Uint8 direction)
 	WriteData((int*)0x0079648E, clockwise);
 }
 
-void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this);
+static void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this);
 static Trampoline PolyBuff_DrawTriangleStrip_trampoline(0x00794760, 0x00794767, PolyBuff_DrawTriangleStrip_r);
-void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this)
+static void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this)
 {
 	FastcallFunctionPointer(void, original, (PolyBuff*), PolyBuff_DrawTriangleStrip_trampoline.Target());
 	if (!mirror || mirror == MirrorXY || _this->RenderArgs->CullMode == D3DCULL_NONE)
@@ -126,9 +126,9 @@ void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this)
 	args->CullMode = last;
 }
 
-void __fastcall PolyBuff_DrawTriangleList_r(PolyBuff *_this);
+static void __fastcall PolyBuff_DrawTriangleList_r(PolyBuff *_this);
 static Trampoline PolyBuff_DrawTriangleList_trampoline(0x007947B0, 0x007947B7, PolyBuff_DrawTriangleList_r);
-void __fastcall PolyBuff_DrawTriangleList_r(PolyBuff *_this)
+static void __fastcall PolyBuff_DrawTriangleList_r(PolyBuff *_this)
 {
 	FastcallFunctionPointer(void, original, (PolyBuff*), PolyBuff_DrawTriangleList_trampoline.Target());
 	if (!mirror || mirror == MirrorXY || _this->RenderArgs->CullMode == D3DCULL_NONE)
