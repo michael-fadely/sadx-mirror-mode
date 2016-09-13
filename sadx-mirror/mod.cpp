@@ -2,13 +2,6 @@
 
 #define EXPORT __declspec(dllexport)
 
-// basically NJS_MATRIX
-DataArray(float, BaseTransformationMatrix, 0x0389D318, 16);
-
-DataPointer(float, ViewPortWidth_Half, 0x03D0FA0C);
-DataPointer(float, ViewPortHeight_Half, 0x03D0FA10);
-DataPointer(Bool, TransformAndViewportInvalid, 0x03D0FD1C);
-
 #pragma pack(push, 1)
 struct __declspec(align(2)) PolyBuff_RenderArgs
 {
@@ -42,13 +35,28 @@ enum MirrorDirection : Uint8
 	MirrorXY = MirrorX | MirrorY
 };
 
+// basically NJS_MATRIX
+DataArray(float, BaseTransformationMatrix, 0x0389D318, 16);
+DataPointer(float, ViewPortWidth_Half, 0x03D0FA0C);
+DataPointer(float, ViewPortHeight_Half, 0x03D0FA10);
+DataPointer(Bool, TransformAndViewportInvalid, 0x03D0FD1C);
+
+static bool chao_fix = false;
+static Uint8 last_mirror = 0;
 static Uint8 mirror = None;
+
+static void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this);
+static void __fastcall PolyBuff_DrawTriangleList_r(PolyBuff *_this);
+static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7);
+
+static Trampoline PolyBuff_DrawTriangleStrip_trampoline(0x00794760, 0x00794767, PolyBuff_DrawTriangleStrip_r);
+static Trampoline PolyBuff_DrawTriangleList_trampoline(0x007947B0, 0x007947B7, PolyBuff_DrawTriangleList_r);
+static Trampoline njDrawSprite3D_3_trampoline(0x0077E390, 0x0077E398, njDrawSprite3D_3_r);
 
 constexpr bool is_mirrored(Uint8 direction)
 {
 	return direction != None && direction != MirrorXY;
 }
-
 static void toggle_mirror(Uint8 direction)
 {
 	if (direction & MirrorX)
@@ -99,8 +107,6 @@ static void toggle_mirror(Uint8 direction)
 	WriteData((int*)0x0079648E, clockwise);
 }
 
-static void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this);
-static Trampoline PolyBuff_DrawTriangleStrip_trampoline(0x00794760, 0x00794767, PolyBuff_DrawTriangleStrip_r);
 static void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this)
 {
 	FastcallFunctionPointer(void, original, (PolyBuff*), PolyBuff_DrawTriangleStrip_trampoline.Target());
@@ -125,9 +131,6 @@ static void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this)
 	original(_this);
 	args->CullMode = last;
 }
-
-static void __fastcall PolyBuff_DrawTriangleList_r(PolyBuff *_this);
-static Trampoline PolyBuff_DrawTriangleList_trampoline(0x007947B0, 0x007947B7, PolyBuff_DrawTriangleList_r);
 static void __fastcall PolyBuff_DrawTriangleList_r(PolyBuff *_this)
 {
 	FastcallFunctionPointer(void, original, (PolyBuff*), PolyBuff_DrawTriangleList_trampoline.Target());
@@ -152,9 +155,6 @@ static void __fastcall PolyBuff_DrawTriangleList_r(PolyBuff *_this)
 	original(_this);
 	args->CullMode = last;
 }
-
-static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7);
-static Trampoline njDrawSprite3D_3_trampoline(0x0077E390, 0x0077E398, njDrawSprite3D_3_r);
 static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7)
 {
 	FunctionPointer(void, original, (NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7),
@@ -189,7 +189,6 @@ static void __stdcall sprite_flip_c(NJS_VECTOR* v)
 		v->y = (float)VerticalResolution - v->y;
 	}
 }
-
 constexpr auto sprite_flip_retn = (void*)0x0077E46E;
 static void __declspec(naked) sprite_flip()
 {
@@ -206,9 +205,6 @@ static void __declspec(naked) sprite_flip()
 		jmp     sprite_flip_retn
 	}
 }
-
-static bool chao_fix = false;
-static Uint8 last_mirror = 0;
 
 static bool do_chao_fix()
 {
@@ -243,6 +239,7 @@ static bool do_chao_fix()
 extern "C"
 {
 	EXPORT ModInfo SADXModInfo = { ModLoaderVer };
+
 	EXPORT void __cdecl Init()
 	{
 		WriteJump((void*)0x0077E444, sprite_flip);
