@@ -42,7 +42,7 @@ enum MirrorDirection : Uint8
 	MirrorXY = MirrorX | MirrorY
 };
 
-static Uint8 mirror = MirrorX;
+static Uint8 mirror = None;
 
 constexpr bool is_mirrored(Uint8 direction)
 {
@@ -246,7 +246,7 @@ extern "C"
 	EXPORT void __cdecl Init()
 	{
 		WriteJump((void*)0x0077E444, sprite_flip);
-		BaseTransformationMatrix[M00] *= -1.0f;
+		toggle_mirror(MirrorX);
 	}
 
 	EXPORT void __cdecl OnInput()
