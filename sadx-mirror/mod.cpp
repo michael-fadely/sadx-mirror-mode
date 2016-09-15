@@ -48,10 +48,12 @@ static Uint8 mirror = None;
 static void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this);
 static void __fastcall PolyBuff_DrawTriangleList_r(PolyBuff *_this);
 static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7);
+static void __fastcall njProjectScreen_r(NJS_MATRIX *m, NJS_VECTOR *p3, NJS_POINT2 *p2);
 
 static Trampoline PolyBuff_DrawTriangleStrip_trampoline(0x00794760, 0x00794767, PolyBuff_DrawTriangleStrip_r);
 static Trampoline PolyBuff_DrawTriangleList_trampoline(0x007947B0, 0x007947B7, PolyBuff_DrawTriangleList_r);
 static Trampoline njDrawSprite3D_3_trampoline(0x0077E390, 0x0077E398, njDrawSprite3D_3_r);
+static Trampoline njProjectScreen_trampoline(0x00788700, 0x00788705, njProjectScreen_r);
 
 constexpr bool is_mirrored(Uint8 direction)
 {
@@ -171,6 +173,24 @@ static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, f
 
 	original(a1, n, attr, a7);
 }
+static void __fastcall njProjectScreen_r(NJS_MATRIX *m, NJS_VECTOR *p3, NJS_POINT2 *p2)
+{
+	auto original = (decltype(njProjectScreen_r)*)njProjectScreen_trampoline.Target();
+	original(m, p3, p2);
+
+	if (!is_mirrored(mirror))
+		return;
+
+	if (mirror & MirrorX)
+	{
+		p2->x = (float)HorizontalResolution - p2->x;
+	}
+
+	if (mirror & MirrorY)
+	{
+		p2->y = (float)VerticalResolution - p2->y;
+	}
+}
 
 static void __stdcall sprite_flip_c(NJS_VECTOR* v)
 {
@@ -239,7 +259,7 @@ static bool do_chao_fix()
 static constexpr auto trigger_mask = Buttons_L | Buttons_R;
 static void swap_triggers(uint32_t& buttons)
 {
-	if (!(buttons & trigger_mask) || buttons & trigger_mask == trigger_mask)
+	if (!(buttons & trigger_mask) || (buttons & trigger_mask) == trigger_mask)
 		return;
 
 	if (buttons & Buttons_L)
@@ -279,10 +299,10 @@ extern "C"
 			{
 				toggle_mirror(MirrorX);
 			}
-			if (pressed & Buttons_C)
+			/*if (pressed & Buttons_C)
 			{
 				toggle_mirror(MirrorY);
-			}
+			}*/
 #endif
 
 			// We want to skip axis flipping if we're on a menu or the game is paused.
