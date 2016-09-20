@@ -257,7 +257,7 @@ static bool do_chao_fix()
 }
 
 static constexpr auto trigger_mask = Buttons_L | Buttons_R;
-static void swap_triggers(uint32_t& buttons)
+inline void swap_triggers(uint32_t& buttons)
 {
 	if (!(buttons & trigger_mask) || (buttons & trigger_mask) == trigger_mask)
 		return;
@@ -319,6 +319,14 @@ extern "C"
 			pad->RTriggerPressure = lt;
 
 			swap_triggers(pad->HeldButtons);
+
+			auto not = ~pad->NotHeldButtons;
+			swap_triggers(not);
+			pad->NotHeldButtons = ~not;
+
+			swap_triggers(pad->PressedButtons);
+			swap_triggers(pad->ReleasedButtons);
+			swap_triggers(pad->Old);
 		}
 	}
 }
