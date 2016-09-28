@@ -49,11 +49,13 @@ static void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this);
 static void __fastcall PolyBuff_DrawTriangleList_r(PolyBuff *_this);
 static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7);
 static void __fastcall njProjectScreen_r(NJS_MATRIX *m, NJS_VECTOR *p3, NJS_POINT2 *p2);
+static char __cdecl SetPauseDisplayOptions_r(Uint8 *a1);
 
 static Trampoline PolyBuff_DrawTriangleStrip_trampoline(0x00794760, 0x00794767, PolyBuff_DrawTriangleStrip_r);
 static Trampoline PolyBuff_DrawTriangleList_trampoline(0x007947B0, 0x007947B7, PolyBuff_DrawTriangleList_r);
 static Trampoline njDrawSprite3D_3_trampoline(0x0077E390, 0x0077E398, njDrawSprite3D_3_r);
 static Trampoline njProjectScreen_trampoline(0x00788700, 0x00788705, njProjectScreen_r);
+static Trampoline SetPauseDisplayOptions_trampoline(0x004582E0, 0x004582E8, SetPauseDisplayOptions_r);
 
 constexpr bool is_mirrored(Uint8 direction)
 {
@@ -190,6 +192,20 @@ static void __fastcall njProjectScreen_r(NJS_MATRIX *m, NJS_VECTOR *p3, NJS_POIN
 	{
 		p2->y = (float)VerticalResolution - p2->y;
 	}
+}
+
+static char __cdecl SetPauseDisplayOptions_r(Uint8 *a1)
+{
+	auto original = (decltype(SetPauseDisplayOptions_r)*)SetPauseDisplayOptions_trampoline.Target();
+	auto result = original(a1);
+
+	if (*a1 & PauseOptions_Map)
+	{
+		*a1 &= ~PauseOptions_Map;
+		--result;
+	}
+
+	return result;
 }
 
 static void __stdcall sprite_flip_c(NJS_VECTOR* v)
