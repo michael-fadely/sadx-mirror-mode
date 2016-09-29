@@ -40,6 +40,7 @@ DataArray(float, BaseTransformationMatrix, 0x0389D318, 16);
 DataPointer(float, ViewPortWidth_Half, 0x03D0FA0C);
 DataPointer(float, ViewPortHeight_Half, 0x03D0FA10);
 DataPointer(Bool, TransformAndViewportInvalid, 0x03D0FD1C);
+DataPointer(NJS_OBJECT, JumpPanelDigit_OBJECT, 0x008C536C);
 
 static bool chao_fix = false;
 static Uint8 last_mirror = 0;
@@ -164,14 +165,17 @@ static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, f
 	FunctionPointer(void, original, (NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7),
 		njDrawSprite3D_3_trampoline.Target());
 
-	/*if (mirror & MirrorX)
+	// This is unbelievably confusing as far as sprite-based numbers are concerned, so it's disabled.
+	/*
+	if (mirror & MirrorX)
 	{
 		attr = (attr & NJD_SPRITE_HFLIP) ? attr & ~NJD_SPRITE_HFLIP : attr | NJD_SPRITE_HFLIP;
 	}
 	if (mirror & MirrorY)
 	{
 		attr = (attr & NJD_SPRITE_VFLIP) ? attr & ~NJD_SPRITE_VFLIP : attr | NJD_SPRITE_VFLIP;
-	}*/
+	}
+	*/
 
 	original(a1, n, attr, a7);
 }
@@ -288,6 +292,54 @@ inline void swap_triggers(uint32_t& buttons)
 	}
 }
 
+template <typename T>
+static void xor_swap(T& a, T& b)
+{
+	a ^= b;
+	b ^= a;
+	a ^= b;
+}
+
+static void flip_uv(NJS_OBJECT* object)
+{
+	if (object->child)
+	{
+		flip_uv(object->child);
+	}
+
+	if (object->sibling)
+	{
+		flip_uv(object->sibling);
+	}
+
+	NJS_MODEL_SADX* model = object->getbasicdxmodel();
+	if (model == nullptr)
+		throw;
+
+	auto meshsets = model->meshsets;
+	if (meshsets == nullptr)
+		throw;
+
+	for (size_t i = 0; i < model->nbMeshset; i++)
+	{
+		auto uvs  = meshsets[i].vertuv;
+
+		if (uvs == nullptr)
+			throw;
+
+		if ((meshsets[i].type_matId & NJD_MESHSET_MASK) != NJD_MESHSET_TRIMESH)
+			throw;
+
+		size_t vcount = meshsets[i].nbMesh * 3;
+
+		for (size_t j = 0; j < vcount; j++)
+		{
+			auto& uv = uvs[j];
+			xor_swap(uv.u, uv.v);
+		}
+	}
+}
+
 extern "C"
 {
 	EXPORT ModInfo SADXModInfo = { ModLoaderVer };
@@ -296,6 +348,7 @@ extern "C"
 	{
 		WriteJump((void*)0x0077E444, sprite_flip);
 		toggle_mirror(MirrorX);
+		flip_uv(&JumpPanelDigit_OBJECT);
 	}
 
 	EXPORT void __cdecl OnInput()
@@ -315,10 +368,13 @@ extern "C"
 			{
 				toggle_mirror(MirrorX);
 			}
-			/*if (pressed & Buttons_C)
+
+			/*
+			if (pressed & Buttons_C)
 			{
 				toggle_mirror(MirrorY);
-			}*/
+			}
+			*/
 #endif
 
 			// We want to skip axis flipping if we're on a menu or the game is paused.
