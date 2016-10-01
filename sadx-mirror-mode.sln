@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sadx-mirror", "sadx-mirror\sadx-mirror.vcxproj", "{1E1B5F38-91A4-40B1-BC83-6F13C7967D59}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sadx-mirror-mode", "sadx-mirror-mode\sadx-mirror-mode.vcxproj", "{1E1B5F38-91A4-40B1-BC83-6F13C7967D59}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
