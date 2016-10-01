@@ -322,17 +322,42 @@ static void flip_uv(NJS_OBJECT* object)
 
 	for (size_t i = 0; i < model->nbMeshset; i++)
 	{
-		auto uvs  = meshsets[i].vertuv;
+		const auto& meshset = meshsets[i];
+		auto uvs = meshset.vertuv;
 
 		if (uvs == nullptr)
 			throw;
+		
+		size_t uv_count = 0;
 
-		if ((meshsets[i].type_matId & NJD_MESHSET_MASK) != NJD_MESHSET_TRIMESH)
-			throw;
+		switch (meshset.type_matId & NJD_MESHSET_MASK)
+		{
+			case NJD_MESHSET_TRIMESH:
+			case NJD_MESHSET_N:
+			{
+				size_t index = 0;
+				for (size_t j = 0; j < meshset.nbMesh; j++)
+				{
+					const auto& n = meshset.meshes[index++];
+					uv_count += n;
+					index += n;
+				}
+				break;
+			}
 
-		size_t vcount = meshsets[i].nbMesh * 3;
+			case NJD_MESHSET_3:
+				uv_count = meshset.nbMesh * 3;
+				break;
 
-		for (size_t j = 0; j < vcount; j++)
+			case NJD_MESHSET_4:
+				uv_count = meshset.nbMesh * 4;
+				break;
+
+			default:
+				throw;
+		}
+
+		for (size_t j = 0; j < uv_count; j++)
 		{
 			auto& uv = uvs[j];
 			xor_swap(uv.u, uv.v);
