@@ -50,11 +50,13 @@ static void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this);
 static void __fastcall PolyBuff_DrawTriangleList_r(PolyBuff *_this);
 static void __fastcall njProjectScreen_r(NJS_MATRIX *m, NJS_VECTOR *p3, NJS_POINT2 *p2);
 static char __cdecl SetPauseDisplayOptions_r(Uint8 *a1);
+static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7);
 
 static Trampoline PolyBuff_DrawTriangleStrip_trampoline(0x00794760, 0x00794767, PolyBuff_DrawTriangleStrip_r);
 static Trampoline PolyBuff_DrawTriangleList_trampoline(0x007947B0, 0x007947B7, PolyBuff_DrawTriangleList_r);
 static Trampoline njProjectScreen_trampoline(0x00788700, 0x00788705, njProjectScreen_r);
 static Trampoline SetPauseDisplayOptions_trampoline(0x004582E0, 0x004582E8, SetPauseDisplayOptions_r);
+static Trampoline njDrawSprite3D_3_trampoline(0x0077E390, 0x0077E398, njDrawSprite3D_3_r);
 
 inline bool IsMirrored()
 {
@@ -199,6 +201,29 @@ static char __cdecl SetPauseDisplayOptions_r(Uint8 *a1)
 	}
 
 	return result;
+}
+
+// Used to check if any sprites in 3D space need their sprite flipped (not cooridnates).
+static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7)
+{
+	FunctionPointer(void, original, (NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7),
+		njDrawSprite3D_3_trampoline.Target());
+
+	// Flips the combo count on Gamma's targets only
+	if (a1 && a1->tlist == (NJS_TEXLIST*)0x0091D5E0)
+	{
+		if (MirrorMode & MirrorX)
+		{
+			attr = (attr & NJD_SPRITE_HFLIP) ? attr & ~NJD_SPRITE_HFLIP : attr | NJD_SPRITE_HFLIP;
+		}
+
+		if (MirrorMode & MirrorY)
+		{
+			attr = (attr & NJD_SPRITE_VFLIP) ? attr & ~NJD_SPRITE_VFLIP : attr | NJD_SPRITE_VFLIP;
+		}
+	}
+
+	original(a1, n, attr, a7);
 }
 
 // Intercepts the code that sets the screen space coordinates for 3D sprites
