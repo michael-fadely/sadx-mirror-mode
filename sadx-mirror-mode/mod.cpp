@@ -48,12 +48,14 @@ static void __fastcall PolyBuff_DrawTriangleList_r(PolyBuff *_this);
 static void __fastcall njProjectScreen_r(NJS_MATRIX *m, NJS_VECTOR *p3, NJS_POINT2 *p2);
 static char __cdecl GetPauseDisplayOptions_r(Uint8 *a1);
 static void __cdecl njDrawSprite3D_DrawNow_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7);
+static void TornadoTarget_MoveTargetWithinBounds_r();
 
 static Trampoline PolyBuff_DrawTriangleStrip_t(0x00794760, 0x00794767, PolyBuff_DrawTriangleStrip_r);
 static Trampoline PolyBuff_DrawTriangleList_t(0x007947B0, 0x007947B7, PolyBuff_DrawTriangleList_r);
 static Trampoline njProjectScreen_t(0x00788700, 0x00788705, njProjectScreen_r);
 static Trampoline GetPauseDisplayOptions_t(0x004582E0, 0x004582E8, GetPauseDisplayOptions_r);
 static Trampoline njDrawSprite3D_DrawNow_t(0x0077E390, 0x0077E398, njDrawSprite3D_DrawNow_r);
+static Trampoline TornadoTarget_MoveTargetWithinBounds_t(0x00628970, 0x00628978, TornadoTarget_MoveTargetWithinBounds_r);
 
 inline bool is_mirrored()
 {
@@ -142,6 +144,7 @@ static void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this)
 	original(_this);
 	args->CullMode = last;
 }
+
 static void __fastcall PolyBuff_DrawTriangleList_r(PolyBuff *_this)
 {
 	auto original = reinterpret_cast<decltype(PolyBuff_DrawTriangleList_r)*>(PolyBuff_DrawTriangleList_t.Target());
@@ -226,6 +229,44 @@ static void __cdecl njDrawSprite3D_DrawNow_r(NJS_SPRITE *a1, int n, NJD_SPRITE a
 	}
 
 	original(a1, n, attr, a7);
+}
+
+static void TornadoTarget_MoveTargetWithinBounds_c(ObjectMaster *a1)
+{
+	auto original = TornadoTarget_MoveTargetWithinBounds_t.Target();
+
+	// we need to un-flip the input so that the cursor moves in the right direction
+	ControllerData* real = ControllerPointers[0];
+	ControllerData* fixed = &Controllers[0];
+
+	if (is_mirrored() && real != nullptr)
+	{
+		real->LeftStickX = -real->LeftStickX;
+		fixed->LeftStickX = -fixed->LeftStickX;
+	}
+
+	__asm
+	{
+		mov eax, a1
+		call original
+	}
+
+	if (is_mirrored() && real != nullptr)
+	{
+		real->LeftStickX = -real->LeftStickX;
+		fixed->LeftStickX = -fixed->LeftStickX;
+	}
+}
+
+static void __declspec(naked) TornadoTarget_MoveTargetWithinBounds_r()
+{
+	__asm
+	{
+		push eax
+		call TornadoTarget_MoveTargetWithinBounds_c
+		pop eax
+		retn
+	}
 }
 
 // Intercepts the code that sets the screen space coordinates for 3D sprites
