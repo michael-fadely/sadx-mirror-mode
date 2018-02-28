@@ -3,6 +3,7 @@
 #define EXPORT __declspec(dllexport)
 
 #pragma pack(push, 1)
+
 struct __declspec(align(2)) PolyBuff_RenderArgs
 {
 	Uint32 StartVertex;
@@ -10,6 +11,7 @@ struct __declspec(align(2)) PolyBuff_RenderArgs
 	Uint32 CullMode;
 	Uint32 d;
 };
+
 static_assert(sizeof(PolyBuff_RenderArgs) == 0x10, "PolyBuff_RenderArgs size is incorrect");
 
 struct PolyBuff
@@ -24,15 +26,17 @@ struct PolyBuff
 	const char *name;
 	int i;
 };
+
 static_assert(sizeof(PolyBuff) == 0x24, "PolyBuff size is incorrect");
+
 #pragma pack(pop)
 
 enum MirrorDirection : Uint8
 {
-	None,
-	MirrorX  = 1 << 0,
-	MirrorY  = 1 << 1,
-	MirrorXY = MirrorX | MirrorY
+	none,
+	mirror_x  = 1 << 0,
+	mirror_y  = 1 << 1,
+	mirror_xy = mirror_x | mirror_y
 };
 
 // basically NJS_MATRIX
@@ -42,46 +46,48 @@ DataPointer(float, ViewPortHeight_Half, 0x03D0FA10);
 DataPointer(Bool, TransformAndViewportInvalid, 0x03D0FD1C);
 DataPointer(NJS_OBJECT, JumpPanelDigit_OBJECT, 0x008C536C);
 
-static bool AppliedChaoFix  = false;
-static Uint8 LastMirrorMode = None;
-static Uint8 MirrorMode     = None;
+static bool  applied_chao_fix = false;
+static Uint8 last_mirror_mode = none;
+static Uint8 mirror_mode      = none;
 
 static void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this);
 static void __fastcall PolyBuff_DrawTriangleList_r(PolyBuff *_this);
 static void __fastcall njProjectScreen_r(NJS_MATRIX *m, NJS_VECTOR *p3, NJS_POINT2 *p2);
-static char __cdecl SetPauseDisplayOptions_r(Uint8 *a1);
-static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7);
+static char __cdecl GetPauseDisplayOptions_r(Uint8 *a1);
+static void __cdecl njDrawSprite3D_DrawNow_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7);
 
-static Trampoline PolyBuff_DrawTriangleStrip_trampoline(0x00794760, 0x00794767, PolyBuff_DrawTriangleStrip_r);
-static Trampoline PolyBuff_DrawTriangleList_trampoline(0x007947B0, 0x007947B7, PolyBuff_DrawTriangleList_r);
-static Trampoline njProjectScreen_trampoline(0x00788700, 0x00788705, njProjectScreen_r);
-static Trampoline SetPauseDisplayOptions_trampoline(0x004582E0, 0x004582E8, SetPauseDisplayOptions_r);
-static Trampoline njDrawSprite3D_3_trampoline(0x0077E390, 0x0077E398, njDrawSprite3D_3_r);
+static Trampoline PolyBuff_DrawTriangleStrip_t(0x00794760, 0x00794767, PolyBuff_DrawTriangleStrip_r);
+static Trampoline PolyBuff_DrawTriangleList_t(0x007947B0, 0x007947B7, PolyBuff_DrawTriangleList_r);
+static Trampoline njProjectScreen_t(0x00788700, 0x00788705, njProjectScreen_r);
+static Trampoline GetPauseDisplayOptions_t(0x004582E0, 0x004582E8, GetPauseDisplayOptions_r);
+static Trampoline njDrawSprite3D_DrawNow_t(0x0077E390, 0x0077E398, njDrawSprite3D_DrawNow_r);
 
-inline bool IsMirrored()
+inline bool is_mirrored()
 {
-	return MirrorMode != None && MirrorMode != MirrorXY;
+	return mirror_mode != none && mirror_mode != mirror_xy;
 }
 
 // Toggles the provided mirror directions and applies the Chao render fix (more info below).
-static void ToggleMirror(Uint8 direction)
+static void toggle_mirror(Uint8 direction)
 {
-	if (direction & MirrorX)
+	if (direction & mirror_x)
 	{
-		MirrorMode ^= MirrorX;
+		mirror_mode ^= mirror_x;
 		BaseTransformationMatrix[M00] *= -1.0f;
 		TransformAndViewportInvalid = true;
 	}
 
-	if (direction & MirrorY)
+	if (direction & mirror_y)
 	{
-		MirrorMode ^= MirrorY;
+		mirror_mode ^= mirror_y;
 		BaseTransformationMatrix[M11] *= -1.0f;
 		TransformAndViewportInvalid = true;
 	}
 
 	if (!TransformAndViewportInvalid)
+	{
 		return;
+	}
 
 	// The model used for the Chao are triangle strips, so if the
 	// transformation matrix is only flipped in one direction,
@@ -89,46 +95,47 @@ static void ToggleMirror(Uint8 direction)
 	// It uses separate culling modes depending on which way the faces
 	// are pointing (forward or backward).
 
-	bool mirrored = IsMirrored();
-	auto clockwise = (int)(mirrored ? D3DCULL_CCW : D3DCULL_CW);
-	auto counterClockwise = (int)(mirrored ? D3DCULL_CW : D3DCULL_CCW);
+	bool mirrored = is_mirrored();
+	const auto clockwise = static_cast<int>(mirrored ? D3DCULL_CCW : D3DCULL_CW);
+	const auto counter_clockwise = static_cast<int>(mirrored ? D3DCULL_CW : D3DCULL_CCW);
 
-	WriteData((int*)0x00795BD3, counterClockwise);
-	WriteData((int*)0x00795BDE, clockwise);
+	WriteData(reinterpret_cast<int*>(0x00795BD3), counter_clockwise);
+	WriteData(reinterpret_cast<int*>(0x00795BDE), clockwise);
 
-	WriteData((int*)0x00795CD3, counterClockwise);
-	WriteData((int*)0x00795CDE, clockwise);
+	WriteData(reinterpret_cast<int*>(0x00795CD3), counter_clockwise);
+	WriteData(reinterpret_cast<int*>(0x00795CDE), clockwise);
 
-	WriteData((int*)0x00795DF3, counterClockwise);
-	WriteData((int*)0x00795DFE, clockwise);
+	WriteData(reinterpret_cast<int*>(0x00795DF3), counter_clockwise);
+	WriteData(reinterpret_cast<int*>(0x00795DFE), clockwise);
 
-	WriteData((int*)0x00795F28, counterClockwise);
-	WriteData((int*)0x00795F33, clockwise);
+	WriteData(reinterpret_cast<int*>(0x00795F28), counter_clockwise);
+	WriteData(reinterpret_cast<int*>(0x00795F33), clockwise);
 
-	WriteData((int*)0x00796068, counterClockwise);
-	WriteData((int*)0x00796073, clockwise);
+	WriteData(reinterpret_cast<int*>(0x00796068), counter_clockwise);
+	WriteData(reinterpret_cast<int*>(0x00796073), clockwise);
 
-	WriteData((int*)0x007961BB, clockwise);
-	WriteData((int*)0x007961CE, counterClockwise);
+	WriteData(reinterpret_cast<int*>(0x007961BB), clockwise);
+	WriteData(reinterpret_cast<int*>(0x007961CE), counter_clockwise);
 
-	WriteData((int*)0x00796328, counterClockwise);
-	WriteData((int*)0x00796333, clockwise);
+	WriteData(reinterpret_cast<int*>(0x00796328), counter_clockwise);
+	WriteData(reinterpret_cast<int*>(0x00796333), clockwise);
 
-	WriteData((int*)0x00796483, counterClockwise);
-	WriteData((int*)0x0079648E, clockwise);
+	WriteData(reinterpret_cast<int*>(0x00796483), counter_clockwise);
+	WriteData(reinterpret_cast<int*>(0x0079648E), clockwise);
 }
 
 static void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this)
 {
-	FastcallFunctionPointer(void, original, (PolyBuff*), PolyBuff_DrawTriangleStrip_trampoline.Target());
-	if (!MirrorMode || MirrorMode == MirrorXY || _this->RenderArgs->CullMode == D3DCULL_NONE)
+	auto original = reinterpret_cast<decltype(PolyBuff_DrawTriangleStrip_r)*>(PolyBuff_DrawTriangleStrip_t.Target());
+
+	if (!mirror_mode || mirror_mode == mirror_xy || _this->RenderArgs->CullMode == D3DCULL_NONE)
 	{
 		original(_this);
 		return;
 	}
 
-	auto args = _this->RenderArgs;
-	auto last = args->CullMode;
+	PolyBuff_RenderArgs* args = _this->RenderArgs;
+	Uint32 last = args->CullMode;
 
 	if (args->CullMode == D3DCULL_CW)
 	{
@@ -144,15 +151,16 @@ static void __fastcall PolyBuff_DrawTriangleStrip_r(PolyBuff *_this)
 }
 static void __fastcall PolyBuff_DrawTriangleList_r(PolyBuff *_this)
 {
-	FastcallFunctionPointer(void, original, (PolyBuff*), PolyBuff_DrawTriangleList_trampoline.Target());
-	if (!MirrorMode || MirrorMode == MirrorXY || _this->RenderArgs->CullMode == D3DCULL_NONE)
+	auto original = reinterpret_cast<decltype(PolyBuff_DrawTriangleList_r)*>(PolyBuff_DrawTriangleList_t.Target());
+
+	if (!mirror_mode || mirror_mode == mirror_xy || _this->RenderArgs->CullMode == D3DCULL_NONE)
 	{
 		original(_this);
 		return;
 	}
 
-	auto args = _this->RenderArgs;
-	auto last = args->CullMode;
+	PolyBuff_RenderArgs* args = _this->RenderArgs;
+	Uint32 last = args->CullMode;
 
 	if (args->CullMode == D3DCULL_CW)
 	{
@@ -170,28 +178,30 @@ static void __fastcall PolyBuff_DrawTriangleList_r(PolyBuff *_this)
 // Overrides njProjectScreen and flips the screen space coordinates before returning.
 static void __fastcall njProjectScreen_r(NJS_MATRIX *m, NJS_VECTOR *p3, NJS_POINT2 *p2)
 {
-	auto original = (decltype(njProjectScreen_r)*)njProjectScreen_trampoline.Target();
+	auto original = reinterpret_cast<decltype(njProjectScreen_r)*>(njProjectScreen_t.Target());
 	original(m, p3, p2);
 
-	if (!IsMirrored())
-		return;
-
-	if (MirrorMode & MirrorX)
+	if (!is_mirrored())
 	{
-		p2->x = (float)HorizontalResolution - p2->x;
+		return;
 	}
 
-	if (MirrorMode & MirrorY)
+	if (mirror_mode & mirror_x)
 	{
-		p2->y = (float)VerticalResolution - p2->y;
+		p2->x = static_cast<float>(HorizontalResolution) - p2->x;
+	}
+
+	if (mirror_mode & mirror_y)
+	{
+		p2->y = static_cast<float>(VerticalResolution) - p2->y;
 	}
 }
 
 // Removes the map option from the pause menu because
 // it's wrong when mirrored and nobody uses it anyway.
-static char __cdecl SetPauseDisplayOptions_r(Uint8 *a1)
+static char __cdecl GetPauseDisplayOptions_r(Uint8 *a1)
 {
-	auto original = (decltype(SetPauseDisplayOptions_r)*)SetPauseDisplayOptions_trampoline.Target();
+	auto original = reinterpret_cast<decltype(GetPauseDisplayOptions_r)*>(GetPauseDisplayOptions_t.Target());
 	auto result = original(a1);
 
 	if (*a1 & PauseOptions_Map)
@@ -204,20 +214,19 @@ static char __cdecl SetPauseDisplayOptions_r(Uint8 *a1)
 }
 
 // Used to check if any sprites in 3D space need their sprite flipped (not cooridnates).
-static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7)
+static void __cdecl njDrawSprite3D_DrawNow_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7)
 {
-	FunctionPointer(void, original, (NJS_SPRITE *a1, int n, NJD_SPRITE attr, float a7),
-		njDrawSprite3D_3_trampoline.Target());
+	auto original = reinterpret_cast<decltype(njDrawSprite3D_DrawNow_r)*>(njDrawSprite3D_DrawNow_t.Target());
 
 	// Flips the combo count on Gamma's targets only
-	if (a1 && a1->tlist == (NJS_TEXLIST*)0x0091D5E0)
+	if (a1 && a1->tlist == reinterpret_cast<NJS_TEXLIST*>(0x0091D5E0))
 	{
-		if (MirrorMode & MirrorX)
+		if (mirror_mode & mirror_x)
 		{
 			attr = (attr & NJD_SPRITE_HFLIP) ? attr & ~NJD_SPRITE_HFLIP : attr | NJD_SPRITE_HFLIP;
 		}
 
-		if (MirrorMode & MirrorY)
+		if (mirror_mode & mirror_y)
 		{
 			attr = (attr & NJD_SPRITE_VFLIP) ? attr & ~NJD_SPRITE_VFLIP : attr | NJD_SPRITE_VFLIP;
 		}
@@ -228,31 +237,31 @@ static void __cdecl njDrawSprite3D_3_r(NJS_SPRITE *a1, int n, NJD_SPRITE attr, f
 
 // Intercepts the code that sets the screen space coordinates for 3D sprites
 // (projected from 3D space to screen space) and flips the coordinates.
-static void __stdcall Flip3DSprites_C(NJS_VECTOR* v)
+static void __stdcall flip_3d_sprites_c(NJS_VECTOR* v)
 {
-	auto v8 = _nj_screen_.dist / v->z;
+	const float v8 = _nj_screen_.dist / v->z;
 
 	v->x = v->x * v8 + ViewPortWidth_Half;
 	v->y = v->y * v8 + ViewPortHeight_Half;
 
-	if (MirrorMode & MirrorX)
+	if (mirror_mode & mirror_x)
 	{
-		v->x = (float)HorizontalResolution - v->x;
+		v->x = static_cast<float>(HorizontalResolution) - v->x;
 	}
 
-	if (MirrorMode & MirrorY)
+	if (mirror_mode & mirror_y)
 	{
-		v->y = (float)VerticalResolution - v->y;
+		v->y = static_cast<float>(VerticalResolution) - v->y;
 	}
 }
 static const auto loc_77E46E = (void*)0x0077E46E;
-static void __declspec(naked) Flip3DSprites()
+static void __declspec(naked) flip_3d_sprites()
 {
 	__asm
 	{
 		lea     ecx, [esp + 30h]
 		push    ecx
-		call    Flip3DSprites_C
+		call    flip_3d_sprites_c
 
 		mov     ecx, dword ptr [_nj_screen_.dist]
 		fld     dword ptr [ecx]
@@ -263,41 +272,49 @@ static void __declspec(naked) Flip3DSprites()
 }
 
 // Disables mirroring in the Chao Race Entrance, Chao Race, and Black Market. Otherwise, enables mirroring.
-static bool CheckMirrorState()
+static bool check_mirror_state()
 {
-	if (!AppliedChaoFix)
+	if (!applied_chao_fix)
 	{
-		if (!IsMirrored() || !IsChaoStage)
+		if (!is_mirrored() || !IsChaoStage)
+		{
 			return false;
+		}
 
 		auto current = GetCurrentChaoStage();
-		AppliedChaoFix = current == SADXChaoStage_RaceEntry || current == SADXChaoStage_BlackMarket || current == SADXChaoStage_Race;
 
-		if (AppliedChaoFix)
+		applied_chao_fix = current == SADXChaoStage_RaceEntry
+			|| current == SADXChaoStage_BlackMarket
+			|| current == SADXChaoStage_Race;
+
+		if (applied_chao_fix)
 		{
-			LastMirrorMode = MirrorMode;
-			ToggleMirror(MirrorMode);
+			last_mirror_mode = mirror_mode;
+			toggle_mirror(mirror_mode);
 		}
 	}
 	else
 	{
-		auto current = GetCurrentChaoStage();
+		SADXChaoStage current = GetCurrentChaoStage();
 
-		if (!IsChaoStage || current != SADXChaoStage_RaceEntry && current != SADXChaoStage_BlackMarket && current != SADXChaoStage_Race)
+		if (!IsChaoStage
+			|| (current != SADXChaoStage_RaceEntry && current != SADXChaoStage_BlackMarket && current != SADXChaoStage_Race))
 		{
-			ToggleMirror(LastMirrorMode);
-			AppliedChaoFix = false;
+			toggle_mirror(last_mirror_mode);
+			applied_chao_fix = false;
 		}
 	}
 
-	return AppliedChaoFix;
+	return applied_chao_fix;
 }
 
-static constexpr auto TRIGGER_MASK = Buttons_L | Buttons_R;
-inline void SwapTriggers(uint32_t& buttons)
+static constexpr uint32_t TRIGGER_MASK = Buttons_L | Buttons_R;
+inline void swap_triggers(uint32_t& buttons)
 {
 	if (!(buttons & TRIGGER_MASK) || (buttons & TRIGGER_MASK) == TRIGGER_MASK)
+	{
 		return;
+	}
 
 	if (buttons & Buttons_L)
 	{
@@ -310,40 +327,49 @@ inline void SwapTriggers(uint32_t& buttons)
 }
 
 template <typename T>
-static void XOR_SWAP(T& a, T& b)
+static void swap_things(T& a, T& b)
 {
-	a ^= b;
-	b ^= a;
-	a ^= b;
+	auto temp = a;
+
+	a = b;
+	b = temp;
 }
 
-static void FlipUVs(NJS_OBJECT* object)
+static void flip_uv(NJS_OBJECT* object)
 {
 	if (object->child)
 	{
-		FlipUVs(object->child);
+		flip_uv(object->child);
 	}
 
 	if (object->sibling)
 	{
-		FlipUVs(object->sibling);
+		flip_uv(object->sibling);
 	}
 
 	NJS_MODEL_SADX* model = object->getbasicdxmodel();
+
 	if (model == nullptr)
+	{
 		throw;
+	}
 
 	auto meshsets = model->meshsets;
+
 	if (meshsets == nullptr)
+	{
 		throw;
+	}
 
 	for (size_t i = 0; i < model->nbMeshset; i++)
 	{
-		const auto& meshset = meshsets[i];
-		auto uvs = meshset.vertuv;
+		const NJS_MESHSET_SADX& meshset = meshsets[i];
+		NJS_TEX* vertuv = meshset.vertuv;
 
-		if (uvs == nullptr)
+		if (vertuv == nullptr)
+		{
 			throw;
+		}
 		
 		size_t uv_count = 0;
 
@@ -376,8 +402,8 @@ static void FlipUVs(NJS_OBJECT* object)
 
 		for (size_t j = 0; j < uv_count; j++)
 		{
-			auto& uv = uvs[j];
-			XOR_SWAP(uv.u, uv.v);
+			NJS_TEX& uv = vertuv[j];
+			swap_things(uv.u, uv.v);
 		}
 	}
 }
@@ -388,40 +414,46 @@ extern "C"
 
 	EXPORT void __cdecl Init()
 	{
-		WriteJump((void*)0x0077E444, Flip3DSprites);
-		ToggleMirror(MirrorX);
-		FlipUVs(&JumpPanelDigit_OBJECT);
+		WriteJump(reinterpret_cast<void*>(0x0077E444), flip_3d_sprites);
+		toggle_mirror(mirror_x);
+		flip_uv(&JumpPanelDigit_OBJECT);
 	}
 
 	EXPORT void __cdecl OnInput()
 	{
-		if (CheckMirrorState())
+		if (check_mirror_state())
+		{
 			return;
+		}
 
 		for (Uint32 i = 0; i < 8; i++)
 		{
 			ControllerData* pad = ControllerPointers[i];
+			
 			if (pad == nullptr)
+			{
 				continue;
+			}
 
 #ifdef _DEBUG
 			auto pressed = pad->PressedButtons;
+
 			if (pressed & Buttons_D)
 			{
-				ToggleMirror(MirrorX);
+				toggle_mirror(mirror_x);
 			}
 
-			/*
 			if (pressed & Buttons_C)
 			{
-				ToggleMirror(MirrorY);
+				toggle_mirror(mirror_y);
 			}
-			*/
 #endif
 
 			// We want to skip axis flipping if we're on a menu or the game is paused.
-			if (!(MirrorMode & MirrorX) || GameState == 21 || GameState == 16)
+			if (!(mirror_mode & mirror_x) || GameState == 21 || GameState == 16)
+			{
 				continue;
+			}
 
 			// This flips the X axis of both sticks and swaps the triggers.
 
@@ -434,15 +466,15 @@ extern "C"
 			pad->LTriggerPressure = rt;
 			pad->RTriggerPressure = lt;
 
-			SwapTriggers(pad->HeldButtons);
+			swap_triggers(pad->HeldButtons);
 
 			auto not = ~pad->NotHeldButtons;
-			SwapTriggers(not);
+			swap_triggers(not);
 			pad->NotHeldButtons = ~not;
 
-			SwapTriggers(pad->PressedButtons);
-			SwapTriggers(pad->ReleasedButtons);
-			SwapTriggers(pad->Old);
+			swap_triggers(pad->PressedButtons);
+			swap_triggers(pad->ReleasedButtons);
+			swap_triggers(pad->Old);
 		}
 	}
 }
