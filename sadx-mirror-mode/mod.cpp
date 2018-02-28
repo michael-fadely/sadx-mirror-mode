@@ -245,7 +245,7 @@ static void __stdcall Flip3DSprites_C(NJS_VECTOR* v)
 		v->y = (float)VerticalResolution - v->y;
 	}
 }
-constexpr auto loc_77E46E = (void*)0x0077E46E;
+static const auto loc_77E46E = (void*)0x0077E46E;
 static void __declspec(naked) Flip3DSprites()
 {
 	__asm
