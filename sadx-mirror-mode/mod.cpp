@@ -254,7 +254,9 @@ static void __stdcall flip_3d_sprites_c(NJS_VECTOR* v)
 		v->y = static_cast<float>(VerticalResolution) - v->y;
 	}
 }
-static const auto loc_77E46E = (void*)0x0077E46E;
+
+static const auto loc_77E46E = reinterpret_cast<void*>(0x0077E46E);
+
 static void __declspec(naked) flip_3d_sprites()
 {
 	__asm
@@ -410,7 +412,7 @@ static void flip_uv(NJS_OBJECT* object)
 
 extern "C"
 {
-	EXPORT ModInfo SADXModInfo = { ModLoaderVer };
+	EXPORT ModInfo SADXModInfo = { ModLoaderVer, nullptr, nullptr, 0, nullptr, 0 , nullptr, 0, nullptr, 0 };
 
 	EXPORT void __cdecl Init()
 	{
