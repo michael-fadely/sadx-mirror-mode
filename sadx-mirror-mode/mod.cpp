@@ -39,13 +39,6 @@ enum MirrorDirection : Uint8
 	mirror_xy = mirror_x | mirror_y
 };
 
-// basically NJS_MATRIX
-DataArray(float, BaseTransformationMatrix, 0x0389D318, 16);
-DataPointer(float, ViewPortWidth_Half, 0x03D0FA0C);
-DataPointer(float, ViewPortHeight_Half, 0x03D0FA10);
-DataPointer(Bool, TransformAndViewportInvalid, 0x03D0FD1C);
-DataPointer(NJS_OBJECT, JumpPanelDigit_OBJECT, 0x008C536C);
-
 static bool  applied_chao_fix = false;
 static Uint8 last_mirror_mode = none;
 static Uint8 mirror_mode      = none;
@@ -73,14 +66,14 @@ static void toggle_mirror(Uint8 direction)
 	if (direction & mirror_x)
 	{
 		mirror_mode ^= mirror_x;
-		BaseTransformationMatrix[M00] *= -1.0f;
+		BaseTransformationMatrix.m[0][0] *= -1.0f;
 		TransformAndViewportInvalid = true;
 	}
 
 	if (direction & mirror_y)
 	{
 		mirror_mode ^= mirror_y;
-		BaseTransformationMatrix[M11] *= -1.0f;
+		BaseTransformationMatrix.m[1][1] *= -1.0f;
 		TransformAndViewportInvalid = true;
 	}
 
