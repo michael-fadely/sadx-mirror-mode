@@ -55,7 +55,9 @@ static Trampoline PolyBuff_DrawTriangleList_t(0x007947B0, 0x007947B7, PolyBuff_D
 static Trampoline njProjectScreen_t(0x00788700, 0x00788705, njProjectScreen_r);
 static Trampoline GetPauseDisplayOptions_t(0x004582E0, 0x004582E8, GetPauseDisplayOptions_r);
 static Trampoline njDrawSprite3D_DrawNow_t(0x0077E390, 0x0077E398, njDrawSprite3D_DrawNow_r);
-static Trampoline TornadoTarget_MoveTargetWithinBounds_t(0x00628970, 0x00628978, TornadoTarget_MoveTargetWithinBounds_r);
+
+// Dynamically allocated to be compatible with other Sky Chase fixes which are patched on Init
+static Trampoline* TornadoTarget_MoveTargetWithinBounds_t = nullptr;
 
 inline bool is_mirrored()
 {
@@ -233,7 +235,7 @@ static void __cdecl njDrawSprite3D_DrawNow_r(NJS_SPRITE *a1, int n, NJD_SPRITE a
 
 static void TornadoTarget_MoveTargetWithinBounds_c(ObjectMaster *a1)
 {
-	auto original = TornadoTarget_MoveTargetWithinBounds_t.Target();
+	auto original = TornadoTarget_MoveTargetWithinBounds_t->Target();
 
 	// we need to un-flip the input so that the cursor moves in the right direction
 	ControllerData* real = ControllerPointers[0];
@@ -450,6 +452,7 @@ extern "C"
 
 	EXPORT void __cdecl Init()
 	{
+		TornadoTarget_MoveTargetWithinBounds_t = new Trampoline(0x00628970, 0x00628978, TornadoTarget_MoveTargetWithinBounds_r);
 		WriteJump(reinterpret_cast<void*>(0x0077E444), flip_3d_sprites);
 		toggle_mirror(mirror_x);
 		flip_uv(&JumpPanelDigit_OBJECT);
